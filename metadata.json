@@ -1,0 +1,7 @@
+{
+  "name": "Clínica Odontológica - Antes e Depois",
+  "description": "Seção de Antes e Depois com IA (Nano Banana) para clínica odontológica.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}

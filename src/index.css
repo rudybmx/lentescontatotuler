@@ -1,0 +1,18 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Jost:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-heading: "Coves", "Jost", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Roboto", ui-sans-serif, system-ui, sans-serif;
+  --color-brand-primary: #CC3366;
+  --color-brand-accent: #000000;
+  --color-brand-bg: #FFFFFF;
+  --color-brand-text: #000000;
+  --color-brand-link: #69727D;
+}
+
+body {
+  font-family: var(--font-body);
+  background-color: var(--color-brand-bg);
+  color: var(--color-brand-text);
+}

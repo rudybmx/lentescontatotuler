@@ -92,10 +92,10 @@ export function CameraSimulator({ onComplete }: { onComplete: (before: string, a
     startCamera();
   };
 
-  const generateSmile = async () => {
+  const generateSmile = async (retryCount = 0) => {
     if (!capturedImage) return;
     setIsGenerating(true);
-    setError(null);
+    if (retryCount === 0) setError(null);
     
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
@@ -122,21 +122,30 @@ export function CameraSimulator({ onComplete }: { onComplete: (before: string, a
 
       if (afterImage) {
         onComplete(capturedImage, afterImage);
+        setIsGenerating(false);
       } else {
         setError('Falha ao gerar a imagem. Tente tirar uma foto mais clara do seu rosto.');
+        setIsGenerating(false);
       }
     } catch (err: any) {
-      console.error(err);
+      console.error("API Error:", err);
+      const errorString = typeof err === 'object' ? JSON.stringify(err) : String(err);
       
-      // Handle 503 Service Unavailable and other specific API errors
-      if (err.status === 503 || err.message?.includes('503') || err.message?.includes('UNAVAILABLE')) {
+      const isUnavailable = err.status === 503 || errorString.includes('503') || errorString.includes('UNAVAILABLE');
+      
+      if (isUnavailable && retryCount < 2) {
+        console.log(`Serviço indisponível. Tentando novamente... (${retryCount + 1}/2)`);
+        setTimeout(() => generateSmile(retryCount + 1), 2000 * (retryCount + 1));
+        return; // Exit early to prevent setting isGenerating to false
+      }
+      
+      if (isUnavailable) {
         setError('O serviço de Inteligência Artificial está temporariamente indisponível devido a alta demanda. Por favor, tente novamente em alguns instantes.');
-      } else if (err.status === 429 || err.message?.includes('429') || err.message?.includes('quota')) {
+      } else if (err.status === 429 || errorString.includes('429') || errorString.includes('quota')) {
         setError('Limite de uso atingido. Por favor, tente novamente mais tarde.');
       } else {
         setError('Erro ao processar a imagem com a IA. Tente novamente.');
       }
-    } finally {
       setIsGenerating(false);
     }
   };

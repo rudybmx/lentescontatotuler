@@ -1,10 +1,11 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { GoogleGenAI } from '@google/genai';
-import { Camera, Loader2, RefreshCw, Sparkles } from 'lucide-react';
+import { Camera, Loader2, RefreshCw, Sparkles, Upload, AlertCircle } from 'lucide-react';
 
 export function CameraSimulator({ onComplete }: { onComplete: (before: string, after: string) => void }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -12,6 +13,9 @@ export function CameraSimulator({ onComplete }: { onComplete: (before: string, a
 
   const startCamera = useCallback(async () => {
     try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error("API de câmera não suportada");
+      }
       const mediaStream = await navigator.mediaDevices.getUserMedia({ 
         video: { facingMode: 'user' } 
       });
@@ -20,9 +24,13 @@ export function CameraSimulator({ onComplete }: { onComplete: (before: string, a
         videoRef.current.srcObject = mediaStream;
       }
       setError(null);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Erro ao acessar câmera:", err);
-      setError("Não foi possível acessar a câmera. Verifique as permissões do seu navegador.");
+      if (err.name === 'NotAllowedError' || err.message?.includes('Permission denied')) {
+        setError("Acesso à câmera negado. Permita o acesso no navegador ou envie uma foto.");
+      } else {
+        setError("Câmera indisponível. Por favor, envie uma foto da galeria.");
+      }
     }
   }, []);
 
@@ -60,6 +68,22 @@ export function CameraSimulator({ onComplete }: { onComplete: (before: string, a
           setStream(null);
         }
       }
+    }
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setCapturedImage(event.target?.result as string);
+        setError(null);
+        if (stream) {
+          stream.getTracks().forEach(track => track.stop());
+          setStream(null);
+        }
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -101,9 +125,17 @@ export function CameraSimulator({ onComplete }: { onComplete: (before: string, a
       } else {
         setError('Falha ao gerar a imagem. Tente tirar uma foto mais clara do seu rosto.');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      setError('Erro ao processar a imagem com a IA. Tente novamente.');
+      
+      // Handle 503 Service Unavailable and other specific API errors
+      if (err.status === 503 || err.message?.includes('503') || err.message?.includes('UNAVAILABLE')) {
+        setError('O serviço de Inteligência Artificial está temporariamente indisponível devido a alta demanda. Por favor, tente novamente em alguns instantes.');
+      } else if (err.status === 429 || err.message?.includes('429') || err.message?.includes('quota')) {
+        setError('Limite de uso atingido. Por favor, tente novamente mais tarde.');
+      } else {
+        setError('Erro ao processar a imagem com a IA. Tente novamente.');
+      }
     } finally {
       setIsGenerating(false);
     }
@@ -123,18 +155,36 @@ export function CameraSimulator({ onComplete }: { onComplete: (before: string, a
               className="absolute inset-0 w-full h-full object-cover transform scale-x-[-1]"
             />
             {error && (
-              <div className="absolute inset-0 flex items-center justify-center bg-black/80 p-6 text-center z-10">
-                <p className="text-white text-sm">{error}</p>
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-900 p-8 text-center z-10 gap-4">
+                <div className="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center mb-2">
+                  <AlertCircle size={32} className="text-gray-400" />
+                </div>
+                <p className="text-white text-sm font-medium">{error}</p>
+                <button 
+                  onClick={() => fileInputRef.current?.click()}
+                  className="mt-2 bg-brand-primary text-white px-6 py-3 rounded-full text-sm font-bold hover:bg-[#b32957] transition-colors flex items-center gap-2"
+                >
+                  <Upload size={18} />
+                  Escolher Foto
+                </button>
+                <button 
+                  onClick={startCamera}
+                  className="text-gray-400 text-xs hover:text-white underline mt-2"
+                >
+                  Tentar acessar câmera novamente
+                </button>
               </div>
             )}
             
             {/* Face Guide Overlay */}
-            <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center opacity-50">
-              <div className="w-48 h-64 border-2 border-dashed border-white rounded-[100px] mb-8"></div>
-              <p className="text-white text-sm font-medium bg-black/50 px-4 py-1 rounded-full">
-                Posicione seu rosto aqui e sorria
-              </p>
-            </div>
+            {!error && (
+              <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center opacity-50">
+                <div className="w-48 h-64 border-2 border-dashed border-white rounded-[100px] mb-8"></div>
+                <p className="text-white text-sm font-medium bg-black/50 px-4 py-1 rounded-full">
+                  Posicione seu rosto aqui e sorria
+                </p>
+              </div>
+            )}
           </>
         ) : (
           <img 
@@ -144,19 +194,35 @@ export function CameraSimulator({ onComplete }: { onComplete: (before: string, a
           />
         )}
         <canvas ref={canvasRef} className="hidden" />
+        <input 
+          type="file" 
+          ref={fileInputRef} 
+          className="hidden" 
+          accept="image/*"
+          onChange={handleFileUpload}
+        />
       </div>
 
       {/* Controls Area */}
       <div className="p-6 bg-white flex-1 flex flex-col justify-center">
         {!capturedImage ? (
-          <button 
-            onClick={takePhoto}
-            disabled={!!error}
-            className="w-full bg-brand-accent hover:bg-gray-900 text-brand-primary font-bold py-4 rounded-full flex items-center justify-center gap-2 transition-colors disabled:opacity-50 shadow-md border border-transparent"
-          >
-            <Camera size={24} />
-            Tirar Foto do Sorriso
-          </button>
+          <div className="flex flex-col gap-3">
+            <button 
+              onClick={takePhoto}
+              disabled={!!error}
+              className="w-full bg-brand-accent hover:bg-gray-900 text-brand-primary font-bold py-4 rounded-full flex items-center justify-center gap-2 transition-colors disabled:opacity-50 shadow-md border border-transparent"
+            >
+              <Camera size={24} />
+              Tirar Foto do Sorriso
+            </button>
+            <button 
+              onClick={() => fileInputRef.current?.click()}
+              className="w-full bg-transparent border border-brand-link hover:bg-gray-50 text-brand-link font-medium py-3 rounded-full flex items-center justify-center gap-2 transition-colors"
+            >
+              <Upload size={20} />
+              Ou envie uma foto da galeria
+            </button>
+          </div>
         ) : (
           <div className="flex flex-col gap-3">
             <button 

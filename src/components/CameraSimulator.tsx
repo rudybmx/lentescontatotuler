@@ -50,9 +50,22 @@ export function CameraSimulator({ onComplete }: { onComplete: (before: string, a
       const video = videoRef.current;
       const canvas = canvasRef.current;
       
-      // Set canvas to match video dimensions
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
+      let width = video.videoWidth;
+      let height = video.videoHeight;
+      const maxSize = 1024; // Max dimension for API
+      
+      if (width > maxSize || height > maxSize) {
+        if (width > height) {
+          height = Math.round((height * maxSize) / width);
+          width = maxSize;
+        } else {
+          width = Math.round((width * maxSize) / height);
+          height = maxSize;
+        }
+      }
+      
+      canvas.width = width;
+      canvas.height = height;
       const ctx = canvas.getContext('2d');
       
       if (ctx) {
@@ -61,7 +74,7 @@ export function CameraSimulator({ onComplete }: { onComplete: (before: string, a
         ctx.scale(-1, 1);
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.8); // Compress slightly
         setCapturedImage(dataUrl);
         
         // Stop camera to save resources
@@ -78,12 +91,37 @@ export function CameraSimulator({ onComplete }: { onComplete: (before: string, a
     if (file) {
       const reader = new FileReader();
       reader.onload = (event) => {
-        setCapturedImage(event.target?.result as string);
-        setError(null);
-        if (stream) {
-          stream.getTracks().forEach(track => track.stop());
-          setStream(null);
-        }
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          const maxSize = 1024;
+          
+          if (width > maxSize || height > maxSize) {
+            if (width > height) {
+              height = Math.round((height * maxSize) / width);
+              width = maxSize;
+            } else {
+              width = Math.round((width * maxSize) / height);
+              height = maxSize;
+            }
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            setCapturedImage(canvas.toDataURL('image/jpeg', 0.8));
+            setError(null);
+            if (stream) {
+              stream.getTracks().forEach(track => track.stop());
+              setStream(null);
+            }
+          }
+        };
+        img.src = event.target?.result as string;
       };
       reader.readAsDataURL(file);
     }

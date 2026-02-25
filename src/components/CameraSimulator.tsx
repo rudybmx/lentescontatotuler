@@ -11,7 +11,10 @@ export function CameraSimulator({ onComplete }: { onComplete: (before: string, a
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [hasRequestedCamera, setHasRequestedCamera] = useState(false);
+
   const startCamera = useCallback(async () => {
+    setHasRequestedCamera(true);
     try {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         throw new Error("API de câmera não suportada");
@@ -35,13 +38,12 @@ export function CameraSimulator({ onComplete }: { onComplete: (before: string, a
   }, []);
 
   useEffect(() => {
-    startCamera();
     return () => {
       if (stream) {
         stream.getTracks().forEach(track => track.stop());
       }
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [stream]); // Clean up stream on unmount
 
   const takePhoto = () => {
     if (videoRef.current && canvasRef.current) {
@@ -156,29 +158,65 @@ export function CameraSimulator({ onComplete }: { onComplete: (before: string, a
       <div className="relative aspect-[3/4] bg-gray-900 flex items-center justify-center overflow-hidden">
         {!capturedImage ? (
           <>
-            <video 
-              ref={videoRef} 
-              autoPlay 
-              playsInline 
-              muted 
-              className="absolute inset-0 w-full h-full object-cover transform scale-x-[-1]"
-            />
+            {!hasRequestedCamera && !error ? (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-900 p-8 text-center z-10 gap-6">
+                <div className="w-20 h-20 bg-gray-800 rounded-full flex items-center justify-center mb-2">
+                  <Camera size={40} className="text-gray-400" />
+                </div>
+                <div>
+                  <h3 className="text-white text-lg font-bold mb-2">Pronto para a simulação?</h3>
+                  <p className="text-gray-400 text-sm">
+                    Para começarmos, precisamos acessar a sua câmera.
+                  </p>
+                </div>
+                <button 
+                  onClick={startCamera}
+                  className="w-full bg-brand-primary text-white px-6 py-4 rounded-full text-base font-bold hover:bg-[#b32957] transition-colors flex items-center justify-center gap-2 shadow-lg"
+                >
+                  <Camera size={20} />
+                  Ativar Câmera
+                </button>
+                <button 
+                  onClick={() => fileInputRef.current?.click()}
+                  className="text-gray-400 text-sm hover:text-white underline"
+                >
+                  Ou envie uma foto da galeria
+                </button>
+              </div>
+            ) : (
+              <video 
+                ref={videoRef} 
+                autoPlay 
+                playsInline 
+                muted 
+                className="absolute inset-0 w-full h-full object-cover transform scale-x-[-1]"
+              />
+            )}
+            
             {error && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-900 p-8 text-center z-10 gap-4">
-                <div className="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center mb-2">
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-900 p-8 text-center z-20 gap-4 overflow-y-auto">
+                <div className="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center mb-2 shrink-0">
                   <AlertCircle size={32} className="text-gray-400" />
                 </div>
                 <p className="text-white text-sm font-medium">{error}</p>
+                
+                <div className="bg-gray-800/50 p-4 rounded-xl text-left w-full mt-2">
+                  <p className="text-xs text-gray-300 mb-2 font-semibold">Se você está vendo isso em um site (WordPress):</p>
+                  <p className="text-xs text-gray-400">
+                    O administrador do site precisa adicionar <code className="bg-black/30 px-1 rounded text-brand-primary">allow="camera"</code> no código do iframe.
+                  </p>
+                </div>
+
                 <button 
                   onClick={() => fileInputRef.current?.click()}
-                  className="mt-2 bg-brand-primary text-white px-6 py-3 rounded-full text-sm font-bold hover:bg-[#b32957] transition-colors flex items-center gap-2"
+                  className="mt-2 w-full bg-brand-primary text-white px-6 py-3 rounded-full text-sm font-bold hover:bg-[#b32957] transition-colors flex items-center justify-center gap-2 shrink-0"
                 >
                   <Upload size={18} />
-                  Escolher Foto
+                  Escolher Foto da Galeria
                 </button>
                 <button 
                   onClick={startCamera}
-                  className="text-gray-400 text-xs hover:text-white underline mt-2"
+                  className="text-gray-400 text-xs hover:text-white underline mt-2 shrink-0"
                 >
                   Tentar acessar câmera novamente
                 </button>
@@ -186,8 +224,8 @@ export function CameraSimulator({ onComplete }: { onComplete: (before: string, a
             )}
             
             {/* Face Guide Overlay */}
-            {!error && (
-              <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center opacity-50">
+            {hasRequestedCamera && !error && (
+              <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center opacity-50 z-10">
                 <div className="w-48 h-64 border-2 border-dashed border-white rounded-[100px] mb-8"></div>
                 <p className="text-white text-sm font-medium bg-black/50 px-4 py-1 rounded-full">
                   Posicione seu rosto aqui e sorria

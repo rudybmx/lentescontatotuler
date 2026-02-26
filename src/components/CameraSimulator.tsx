@@ -138,9 +138,17 @@ export function CameraSimulator({ onComplete }: { onComplete: (before: string, a
     if (retryCount === 0) setError(null);
     
     try {
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
+      let apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+      try {
+        if (!apiKey && typeof process !== 'undefined' && process.env && process.env.GEMINI_API_KEY) {
+          apiKey = process.env.GEMINI_API_KEY;
+        }
+      } catch (e) {
+        // Ignora erro se process não estiver definido no navegador
+      }
+
       if (!apiKey) {
-        throw new Error("Chave da API não configurada. Adicione VITE_GEMINI_API_KEY nas variáveis de ambiente.");
+        throw new Error("Chave da API não configurada. Adicione VITE_GEMINI_API_KEY na Vercel.");
       }
       
       const ai = new GoogleGenAI({ apiKey });
@@ -169,12 +177,12 @@ export function CameraSimulator({ onComplete }: { onComplete: (before: string, a
         onComplete(capturedImage, afterImage);
         setIsGenerating(false);
       } else {
-        setError('Falha ao gerar a imagem. Tente tirar uma foto mais clara do seu rosto.');
+        setError('Falha ao gerar a imagem. A IA não retornou um resultado válido.');
         setIsGenerating(false);
       }
     } catch (err: any) {
       console.error("API Error:", err);
-      const errorString = typeof err === 'object' ? JSON.stringify(err) : String(err);
+      const errorString = typeof err === 'object' ? JSON.stringify(err, Object.getOwnPropertyNames(err)) : String(err);
       
       const isUnavailable = err.status === 503 || errorString.includes('503') || errorString.includes('UNAVAILABLE');
       
@@ -185,11 +193,11 @@ export function CameraSimulator({ onComplete }: { onComplete: (before: string, a
       }
       
       if (isUnavailable) {
-        setError('O serviço de Inteligência Artificial está temporariamente indisponível devido a alta demanda. Por favor, tente novamente em alguns instantes.');
+        setError('O serviço de IA está temporariamente indisponível (503). Tente novamente em instantes.');
       } else if (err.status === 429 || errorString.includes('429') || errorString.includes('quota')) {
-        setError('Limite de uso atingido. Por favor, tente novamente mais tarde.');
+        setError('Limite de uso atingido (429). Por favor, tente novamente mais tarde.');
       } else {
-        setError('Erro ao processar a imagem com a IA. Tente novamente.');
+        setError(`Erro na IA: ${err.message || 'Falha desconhecida'}`);
       }
       setIsGenerating(false);
     }

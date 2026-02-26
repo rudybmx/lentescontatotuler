@@ -138,7 +138,12 @@ export function CameraSimulator({ onComplete }: { onComplete: (before: string, a
     if (retryCount === 0) setError(null);
     
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
+      if (!apiKey) {
+        throw new Error("Chave da API não configurada. Adicione VITE_GEMINI_API_KEY nas variáveis de ambiente.");
+      }
+      
+      const ai = new GoogleGenAI({ apiKey });
       const mimeType = capturedImage.split(';')[0].split(':')[1];
       const base64Data = capturedImage.split(',')[1];
 

@@ -12,6 +12,37 @@ export function CameraSimulator({ onComplete }: { onComplete: (before: string, a
   const [error, setError] = useState<string | null>(null);
 
   const [hasRequestedCamera, setHasRequestedCamera] = useState(false);
+  
+  const [isLeadModalOpen, setIsLeadModalOpen] = useState(false);
+  const [hasSubmittedLead, setHasSubmittedLead] = useState(false);
+  const [leadName, setLeadName] = useState('');
+  const [leadWhatsapp, setLeadWhatsapp] = useState('');
+  const [isSubmittingLead, setIsSubmittingLead] = useState(false);
+  const [leadError, setLeadError] = useState<string | null>(null);
+
+  const handleLeadSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!leadName || !leadWhatsapp) {
+      setLeadError('Por favor, preencha todos os campos.');
+      return;
+    }
+    setIsSubmittingLead(true);
+    setLeadError(null);
+    try {
+      await fetch('https://webhooks.qozt.com.br/webhook/03e0a46a-aa8d-4a90-a604-7f79d0f43bbd', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: leadName, whatsapp: leadWhatsapp })
+      });
+      setIsLeadModalOpen(false);
+      setHasSubmittedLead(true);
+      startCamera();
+    } catch (err) {
+      setLeadError('Erro ao enviar dados. Verifique sua conexão e tente novamente.');
+    } finally {
+      setIsSubmittingLead(false);
+    }
+  };
 
   const startCamera = useCallback(async () => {
     setHasRequestedCamera(true);
@@ -221,14 +252,14 @@ export function CameraSimulator({ onComplete }: { onComplete: (before: string, a
                   </p>
                 </div>
                 <button 
-                  onClick={startCamera}
+                  onClick={() => hasSubmittedLead ? startCamera() : setIsLeadModalOpen(true)}
                   className="w-full bg-brand-primary text-white px-6 py-4 rounded-full text-base font-bold hover:bg-[#b32957] transition-colors flex items-center justify-center gap-2 shadow-lg"
                 >
                   <Camera size={20} />
                   Ativar Câmera
                 </button>
                 <button 
-                  onClick={() => fileInputRef.current?.click()}
+                  onClick={() => hasSubmittedLead ? fileInputRef.current?.click() : setIsLeadModalOpen(true)}
                   className="text-gray-400 text-sm hover:text-white underline"
                 >
                   Ou envie uma foto da galeria
@@ -259,14 +290,14 @@ export function CameraSimulator({ onComplete }: { onComplete: (before: string, a
                 </div>
 
                 <button 
-                  onClick={() => fileInputRef.current?.click()}
+                  onClick={() => hasSubmittedLead ? fileInputRef.current?.click() : setIsLeadModalOpen(true)}
                   className="mt-2 w-full bg-brand-primary text-white px-6 py-3 rounded-full text-sm font-bold hover:bg-[#b32957] transition-colors flex items-center justify-center gap-2 shrink-0"
                 >
                   <Upload size={18} />
                   Escolher Foto da Galeria
                 </button>
                 <button 
-                  onClick={startCamera}
+                  onClick={() => hasSubmittedLead ? startCamera() : setIsLeadModalOpen(true)}
                   className="text-gray-400 text-xs hover:text-white underline mt-2 shrink-0"
                 >
                   Tentar acessar câmera novamente
@@ -314,7 +345,7 @@ export function CameraSimulator({ onComplete }: { onComplete: (before: string, a
               Tirar Foto do Sorriso
             </button>
             <button 
-              onClick={() => fileInputRef.current?.click()}
+              onClick={() => hasSubmittedLead ? fileInputRef.current?.click() : setIsLeadModalOpen(true)}
               className="w-full bg-transparent border border-brand-link hover:bg-gray-50 text-brand-link font-medium py-3 rounded-full flex items-center justify-center gap-2 transition-colors"
             >
               <Upload size={20} />
@@ -353,6 +384,61 @@ export function CameraSimulator({ onComplete }: { onComplete: (before: string, a
           Sua foto será processada de forma segura por Inteligência Artificial para simular o resultado das lentes de porcelana.
         </p>
       </div>
+
+      {/* Lead Capture Modal */}
+      {isLeadModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+            <h3 className="text-xl font-bold text-gray-900 mb-2">Quase lá!</h3>
+            <p className="text-sm text-gray-600 mb-6">
+              Para liberar o simulador e vermos o seu novo sorriso, preencha seus dados abaixo:
+            </p>
+            <form onSubmit={handleLeadSubmit} className="flex flex-col gap-4">
+              <div>
+                <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">Nome completo</label>
+                <input
+                  type="text"
+                  id="name"
+                  value={leadName}
+                  onChange={(e) => setLeadName(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-brand-primary focus:border-brand-primary outline-none transition-all text-gray-900"
+                  placeholder="Seu nome"
+                  required
+                />
+              </div>
+              <div>
+                <label htmlFor="whatsapp" className="block text-sm font-medium text-gray-700 mb-1">WhatsApp</label>
+                <input
+                  type="tel"
+                  id="whatsapp"
+                  value={leadWhatsapp}
+                  onChange={(e) => setLeadWhatsapp(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-brand-primary focus:border-brand-primary outline-none transition-all text-gray-900"
+                  placeholder="(11) 99999-9999"
+                  required
+                />
+              </div>
+              
+              {leadError && <p className="text-red-500 text-sm">{leadError}</p>}
+              
+              <button
+                type="submit"
+                disabled={isSubmittingLead}
+                className="w-full bg-brand-primary text-white font-bold py-4 rounded-xl mt-2 hover:bg-[#b32957] transition-colors flex items-center justify-center gap-2 disabled:opacity-70"
+              >
+                {isSubmittingLead ? <Loader2 className="animate-spin" size={20} /> : 'Liberar Simulador'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsLeadModalOpen(false)}
+                className="w-full text-gray-500 text-sm py-2 hover:text-gray-700 underline"
+              >
+                Cancelar
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

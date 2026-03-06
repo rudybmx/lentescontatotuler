@@ -46,9 +46,14 @@ export default function App() {
                 >
                   ← Fazer nova simulação
                 </button>
-                <button className="w-full sm:w-auto inline-flex items-center justify-center px-8 py-4 text-lg font-bold text-brand-primary bg-brand-accent rounded-full shadow-lg hover:bg-gray-900 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border border-transparent">
+                <a 
+                  href="https://wa.me/5544991537928"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full sm:w-auto inline-flex items-center justify-center px-8 py-4 text-lg font-bold text-brand-primary bg-brand-accent rounded-full shadow-lg hover:bg-gray-900 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border border-transparent"
+                >
                   Quero Agendar Minha Avaliação
-                </button>
+                </a>
               </div>
             )}
             
